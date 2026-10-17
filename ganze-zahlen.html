@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test: Ganze Zahlen</title>
+<style>
+:root{
+  --bg:#f6f7fb; --card:#ffffff; --text:#1d2433; --muted:#5d667a; --line:#dde1ea;
+  --accent:#2b5fd9; --accent-text:#ffffff; --ok:#1f8a4c; --ok-bg:#e6f5ec; --bad:#c23a3a; --bad-bg:#fbeaea;
+  --input:#ffffff;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#12151c; --card:#1b2029; --text:#e8ebf2; --muted:#9aa3b5; --line:#2e3542;
+    --accent:#6d93ff; --accent-text:#0d1220; --ok:#5bd08f; --ok-bg:#163223; --bad:#ff7b7b; --bad-bg:#3a1c1c;
+    --input:#141820;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#12151c; --card:#1b2029; --text:#e8ebf2; --muted:#9aa3b5; --line:#2e3542;
+  --accent:#6d93ff; --accent-text:#0d1220; --ok:#5bd08f; --ok-bg:#163223; --bad:#ff7b7b; --bad-bg:#3a1c1c;
+  --input:#141820;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:1.6rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:0 0 14px}
+.card h2{font-size:1rem;margin:0 0 6px;color:var(--muted);font-weight:600}
+.task-text{margin:0 0 12px}
+.fields{display:flex;flex-wrap:wrap;gap:12px 18px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:150px;flex:1 1 150px}
+.field label{font-size:.9rem;color:var(--muted)}
+input[type=text]{font:inherit;color:var(--text);background:var(--input);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+input[type=text]:focus{outline:2px solid var(--accent);outline-offset:1px}
+.signs{display:flex;gap:8px}
+.signs label{display:flex;align-items:center;justify-content:center;width:52px;height:40px;border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:1.3rem;color:var(--text);background:var(--input)}
+.signs input{position:absolute;opacity:0;pointer-events:none}
+.signs input:checked + span{font-weight:700}
+.signs label:has(input:checked){border-color:var(--accent);outline:2px solid var(--accent)}
+.field.ok input[type=text], .field.ok .signs label:has(input:checked){border-color:var(--ok);background:var(--ok-bg)}
+.field.bad input[type=text], .field.bad .signs label:has(input:checked){border-color:var(--bad);background:var(--bad-bg)}
+.fb{font-size:.85rem;min-height:1.2em}
+.field.ok .fb{color:var(--ok)}
+.field.bad .fb{color:var(--bad)}
+.name-row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.name-row .field{max-width:360px}
+.hint{font-size:.85rem;color:var(--muted);margin:8px 0 0}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0}
+button{font:inherit;border-radius:8px;padding:10px 16px;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--text)}
+button.primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent);font-weight:600}
+button:disabled{opacity:.5;cursor:default}
+#result{display:none}
+#result .score{font-size:1.5rem;font-weight:700;margin:0 0 4px}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin:8px 0 4px}
+.bar > div{height:100%;background:var(--accent);width:0}
+</style>
+</head>
+<body>
+<main>
+  <h1>Test: Ganze Zahlen, Betrag, Vielecke</h1>
+  <p class="sub">10 Aufgaben, 15 Antworten. Für jede richtige Antwort gibt es 1 Punkt.</p>
+
+  <div class="card">
+    <div class="name-row">
+      <div class="field">
+        <label for="student">Vor- und Nachname</label>
+        <input type="text" id="student" autocomplete="name">
+      </div>
+    </div>
+    <p class="hint">Negative Zahlen schreibst du mit „−“ oder „-“. Dezimalzahlen mit Komma oder Punkt (4,5 oder 4.5). Brüche mit „/“ (z. B. 4/3 oder 1 1/3). Einheiten (cm, m) musst du nicht dazuschreiben.</p>
+  </div>
+
+  <form id="quiz" autocomplete="off"></form>
+
+  <div class="actions">
+    <button class="primary" id="check" type="button">Überprüfen</button>
+    <button id="reveal" type="button" disabled>Richtige Lösungen anzeigen</button>
+    <button id="reset" type="button">Neu beginnen</button>
+  </div>
+
+  <div class="card" id="result" aria-live="polite">
+    <p class="score" id="score"></p>
+    <div class="bar"><div id="bar"></div></div>
+    <p class="sub" id="detail" style="margin:6px 0 12px"></p>
+    <button id="copy" type="button">Ergebnis kopieren</button>
+    <span class="hint" id="copied"></span>
+  </div>
+</main>
+
+<script>
+const TASKS = [
+  {text: "Finde alle ganzen Zahlen x mit −4 < x ≤ 3. Wie viele Zahlen sind das und wie groß ist ihre Summe?",
+   fields: ["Anzahl", "Summe"]},
+  {text: "Die Summe zweier ganzer Zahlen ist −15, ihr Produkt ist 54. Bestimme die beiden Zahlen.",
+   fields: ["Beide Zahlen, durch Komma getrennt"]},
+  {text: "Bestimme das Vorzeichen des Produkts, ohne zu rechnen: a) (−1) · (−2) · (−3) · … · (−10); b) (−1) · (−2) · (−3) · … · (−11).",
+   fields: [{label: "a)", sign: true}, {label: "b)", sign: true}]},
+  {text: "Berechne möglichst geschickt: 1 − 2 + 3 − 4 + 5 − 6 + … + 99 − 100.",
+   fields: ["Ergebnis"]},
+  {text: "Ein Haus hat Kellergeschoße. Ein Lift startet im Stockwerk −3, fährt 7 Stockwerke hinauf, dann 9 hinunter und danach 4 hinauf. In welchem Stockwerk hält er? Wie viele Meter ist er insgesamt gefahren, wenn ein Stockwerk 3 m hoch ist?",
+   fields: ["Stockwerk", "Gesamtstrecke in m"]},
+  {text: "Berechne: [(−3) · (−4) − 50 : (−5)] : (−11) + (−2) · (−3) · (−1).",
+   fields: ["Ergebnis"]},
+  {text: "Berechne: |−7| + |3 − 10| − |−2 − 5| · |−1|.",
+   fields: ["Ergebnis"]},
+  {text: "Ein Parallelogramm hat die Seiten 10 cm und 6 cm. Die Höhe auf die längere Seite ist 4,8 cm. Berechne die Höhe auf die kürzere Seite.",
+   fields: ["Höhe in cm"]},
+  {text: "Ein Trapez hat den Flächeninhalt 54 cm² und die Höhe 6 cm. Eine der parallelen Seiten ist um 4 cm länger als die andere. Berechne die Längen der beiden parallelen Seiten.",
+   fields: ["Kürzere Seite in cm", "Längere Seite in cm"]},
+  {text: "Ein Quadrat und eine Raute haben denselben Umfang von 24 cm. Die Raute hat den Flächeninhalt 27 cm². Berechne die Höhe der Raute. Wievielmal so groß ist der Flächeninhalt des Quadrats wie jener der Raute?",
+   fields: ["Höhe der Raute in cm", "Wievielmal so groß"]}
+];
+
+// Lösungen kodiert, damit sie im Quelltext nicht sofort sichtbar sind
+const KEY = "W3sidCI6ICJudW0iLCAidiI6IDcsICJzaG93IjogIjcifSwgeyJ0IjogIm51bSIsICJ2IjogMCwgInNob3ciOiAiMCJ9LCB7InQiOiAic2V0IiwgInYiOiBbLTYsIC05XSwgInNob3ciOiAi4oiSNiB1bmQg4oiSOSJ9LCB7InQiOiAic2lnbiIsICJ2IjogIisiLCAic2hvdyI6ICIrIn0sIHsidCI6ICJzaWduIiwgInYiOiAiLSIsICJzaG93IjogIuKIkiJ9LCB7InQiOiAibnVtIiwgInYiOiAtNTAsICJzaG93IjogIuKIkjUwIn0sIHsidCI6ICJudW0iLCAidiI6IC0xLCAic2hvdyI6ICLiiJIxIn0sIHsidCI6ICJudW0iLCAidiI6IDYwLCAic2hvdyI6ICI2MCJ9LCB7InQiOiAibnVtIiwgInYiOiAtOCwgInNob3ciOiAi4oiSOCJ9LCB7InQiOiAibnVtIiwgInYiOiA3LCAic2hvdyI6ICI3In0sIHsidCI6ICJudW0iLCAidiI6IDgsICJzaG93IjogIjgifSwgeyJ0IjogIm51bSIsICJ2IjogNywgInNob3ciOiAiNyJ9LCB7InQiOiAibnVtIiwgInYiOiAxMSwgInNob3ciOiAiMTEifSwgeyJ0IjogIm51bSIsICJ2IjogNC41LCAic2hvdyI6ICI0LDUifSwgeyJ0IjogIm51bSIsICJ2IjogMS4zMzMzMzMzMzMzMzMzMzMzLCAic2hvdyI6ICI0LzMgKOKJiCAxLDMzKSJ9XQ==";
+const ANSWERS = JSON.parse(decodeURIComponent(escape(atob(KEY))));
+
+const form = document.getElementById("quiz");
+let fieldIndex = 0;
+const fieldEls = [];
+
+TASKS.forEach((t, ti) => {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `<h2>Aufgabe ${ti + 1}</h2><p class="task-text"></p><div class="fields"></div>`;
+  card.querySelector(".task-text").textContent = t.text;
+  const box = card.querySelector(".fields");
+  t.fields.forEach(f => {
+    const spec = typeof f === "string" ? {label: f} : f;
+    const i = fieldIndex++;
+    const wrap = document.createElement("div");
+    wrap.className = "field";
+    if (spec.sign) {
+      wrap.innerHTML = `<label>${spec.label}</label>
+        <div class="signs" role="radiogroup">
+          <label><input type="radio" name="f${i}" value="+"><span>+</span></label>
+          <label><input type="radio" name="f${i}" value="-"><span>−</span></label>
+        </div><div class="fb"></div>`;
+    } else {
+      wrap.innerHTML = `<label for="f${i}">${spec.label}</label>
+        <input type="text" id="f${i}" name="f${i}" inputmode="text"><div class="fb"></div>`;
+    }
+    box.appendChild(wrap);
+    fieldEls.push({wrap, sign: !!spec.sign, i});
+  });
+  form.appendChild(card);
+});
+
+function norm(s){
+  return String(s).trim()
+    .replace(/[−–—]/g, "-")
+    .replace(/-\s+/g, "-")
+    .replace(/,/g, ".")
+    .replace(/[a-zа-яіїєґ²³]+\.?$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function parseNum(raw){
+  const s = norm(raw);
+  let m;
+  if ((m = s.match(/^([+-]?)(\d+) (\d+)\/(\d+)$/))) {
+    const v = +m[2] + (+m[3]) / (+m[4]);
+    return m[1] === "-" ? -v : v;
+  }
+  if ((m = s.match(/^([+-]?\d+(?:\.\d+)?)\/(\d+(?:\.\d+)?)$/))) {
+    return +m[1] / +m[2];
+  }
+  if (/^[+-]?\d+(\.\d+)?$/.test(s)) return +s;
+  return NaN;
+}
+function parseSet(raw){
+  const s = String(raw).replace(/[−–—]/g, "-").replace(/-\s+/g, "-");
+  return s.split(/[;,\s]+|\s*und\s*/).filter(Boolean).map(Number).filter(n => !Number.isNaN(n)).sort((a, b) => a - b);
+}
+function valueOf(fe){
+  if (fe.sign) {
+    const c = fe.wrap.querySelector("input:checked");
+    return c ? c.value : "";
+  }
+  return fe.wrap.querySelector("input").value;
+}
+function isCorrect(ans, v){
+  if (String(v).trim() === "") return false;
+  if (ans.t === "sign") return v === ans.v;
+  if (ans.t === "set") {
+    const got = parseSet(v), want = [...ans.v].sort((a, b) => a - b);
+    return got.length === want.length && got.every((x, k) => x === want[k]);
+  }
+  const n = parseNum(v);
+  return !Number.isNaN(n) && Math.abs(n - ans.v) < 0.011;
+}
+
+let lastScore = null;
+document.getElementById("check").addEventListener("click", () => {
+  let score = 0, empty = 0;
+  fieldEls.forEach((fe, k) => {
+    const v = valueOf(fe);
+    const ok = isCorrect(ANSWERS[k], v);
+    if (String(v).trim() === "") empty++;
+    if (ok) score++;
+    fe.wrap.classList.toggle("ok", ok);
+    fe.wrap.classList.toggle("bad", !ok);
+    fe.wrap.querySelector(".fb").textContent = ok ? "Richtig" : (String(v).trim() === "" ? "Keine Antwort" : "Falsch");
+  });
+  const total = fieldEls.length;
+  const pct = Math.round(score / total * 100);
+  lastScore = {score, total, pct};
+  document.getElementById("result").style.display = "block";
+  document.getElementById("score").textContent = `${score} von ${total} Punkten (${pct} %)`;
+  document.getElementById("bar").style.width = pct + "%";
+  document.getElementById("detail").textContent =
+    empty ? `Ohne Antwort: ${empty}. Verbessere die Fehler und überprüfe noch einmal.` :
+    (score === total ? "Alles richtig, super gemacht!" : "Finde die Fehler und versuche es noch einmal.");
+  document.getElementById("reveal").disabled = false;
+  document.getElementById("copied").textContent = "";
+  document.getElementById("result").scrollIntoView({behavior: "smooth", block: "nearest"});
+});
+
+document.getElementById("reveal").addEventListener("click", () => {
+  fieldEls.forEach((fe, k) => {
+    if (fe.wrap.classList.contains("bad")) {
+      fe.wrap.querySelector(".fb").textContent = "Richtige Lösung: " + ANSWERS[k].show;
+    }
+  });
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  form.reset();
+  fieldEls.forEach(fe => {
+    fe.wrap.classList.remove("ok", "bad");
+    fe.wrap.querySelector(".fb").textContent = "";
+  });
+  document.getElementById("result").style.display = "none";
+  document.getElementById("reveal").disabled = true;
+  window.scrollTo({top: 0, behavior: "smooth"});
+});
+
+document.getElementById("copy").addEventListener("click", async () => {
+  if (!lastScore) return;
+  const name = document.getElementById("student").value.trim() || "Ohne Namen";
+  const d = new Date().toLocaleString("de-AT");
+  const lines = fieldEls.map((fe, k) => {
+    const v = String(valueOf(fe)).trim() || "—";
+    return `${fe.wrap.classList.contains("ok") ? "✓" : "✗"} ${k + 1}: ${v}`;
+  });
+  const text = `${name}\nTest: Ganze Zahlen, Betrag, Vielecke\n${d}\nErgebnis: ${lastScore.score} von ${lastScore.total} (${lastScore.pct}%)\n\n${lines.join("\n")}`;
+  const out = document.getElementById("copied");
+  try {
+    await navigator.clipboard.writeText(text);
+    out.textContent = " Kopiert";
+  } catch (e) {
+    window.prompt("Ergebnis kopieren:", text);
+  }
+});
+</script>
+</body>
+</html>
